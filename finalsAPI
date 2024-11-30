@@ -1,0 +1,213 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Services;
+using System.Data;
+using System.Data.SqlClient;
+using System.Security.Cryptography;
+using System.Text;
+using MySql.Data.MySqlClient;
+
+namespace finalsPROJECTWebmethods
+{
+    /// <summary>
+    /// Summary description for WebService1
+    /// </summary>
+    [WebService(Namespace = "http://tempuri.org/")]
+    [WebServiceBinding(ConformsTo = WsiProfiles.BasicProfile1_1)]
+    [System.ComponentModel.ToolboxItem(false)]
+    // To allow this Web Service to be called from script, using ASP.NET AJAX, uncomment the following line. 
+    // [System.Web.Script.Services.ScriptService]
+    public class WebService1 : WebService
+    {
+        private string connectionString = "Server=localhost;Port=3306;Database=dbbarangaycrt;User Id=root;Password=yelawolf;";
+
+        [WebMethod]
+        public string Authenticate(string UserName, string APIKey)
+        {
+            try
+            {
+                // Combine and encrypt the credentials
+                string combinedCredentials = $"{UserName}:{APIKey}";
+                string encryptedCredentials = APIKey; // Directly use plaintext
+
+                Console.WriteLine($"UserName: {UserName}");
+                Console.WriteLine($"APIKey: {APIKey}");
+                Console.WriteLine($"EncryptedCredentials: {encryptedCredentials}");
+
+                // Debug log
+                System.Diagnostics.Debug.WriteLine($"UserName: {UserName}, Encrypted: {encryptedCredentials}");
+
+                // Call the stored procedure to validate the user
+                string sessionId = ValidateUser(UserName, encryptedCredentials);
+
+                if (!string.IsNullOrEmpty(sessionId))
+                {
+                    return sessionId;
+                }
+                else
+                {
+                    throw new UnauthorizedAccessException("Invalid username or API key.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        private string Encrypt(string input)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                byte[] hash = sha256.ComputeHash(bytes);
+                return Convert.ToBase64String(hash);
+            }
+        }
+
+        private string ValidateUser(string Username, string EncryptedCredentials)
+        {
+            string sessionId = null;
+
+            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            {
+                using (MySqlCommand cmd = new MySqlCommand("sp_AuthenticateUser", conn))
+                {
+                    cmd.CommandType = CommandType.StoredProcedure;
+
+                    cmd.Parameters.Add(new MySqlParameter("@p_Username", MySqlDbType.VarChar)).Value = Username;
+                    cmd.Parameters.Add(new MySqlParameter("@p_EncryptedCredentials", MySqlDbType.VarChar)).Value = EncryptedCredentials;
+
+                    MySqlParameter sessionParam = new MySqlParameter("@p_SessionID", MySqlDbType.VarChar, 50)
+                    {
+                        Direction = ParameterDirection.Output
+                    };
+                    cmd.Parameters.Add(sessionParam);
+
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+
+                    sessionId = sessionParam.Value?.ToString();
+                }
+            }
+
+            return sessionId;
+        }
+        public string TestConnection()
+        {
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    return "Connection successful!";
+                }
+            }
+            catch (MySqlException ex)
+            {
+                return $"Connection failed: {ex.Message}";
+            }
+        }
+        [WebMethod]
+        public string InsertResident(string residentID, string firstName, string middleName, string lastName,
+                                 string houseNo, string streetAddress, string telephoneNo,
+                                 DateTime birthday, string gender)
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    using (MySqlCommand command = new MySqlCommand("sptblResidents_Insert", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        command.Parameters.AddWithValue("p_residentID", residentID);
+                        command.Parameters.AddWithValue("p_firstName", firstName);
+                        command.Parameters.AddWithValue("p_middleName", middleName);
+                        command.Parameters.AddWithValue("p_lastName", lastName);
+                        command.Parameters.AddWithValue("p_houseNo", houseNo);
+                        command.Parameters.AddWithValue("p_streetAddress", streetAddress);
+                        command.Parameters.AddWithValue("p_telephoneNo", telephoneNo);
+                        command.Parameters.AddWithValue("p_birthday", birthday);
+                        command.Parameters.AddWithValue("p_gender", gender);
+
+                        connection.Open();
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        return $"{rowsAffected} row(s) inserted successfully.";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+
+        }
+        [WebMethod]
+        public string UpdateResident(string residentID, string firstName, string middleName, string lastName,
+                                 string houseNo, string streetAddress, string telephoneNo,
+                                 DateTime birthday, string gender)
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    using (MySqlCommand command = new MySqlCommand("sptblResidents_Update", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        command.Parameters.AddWithValue("p_residentID", residentID);
+                        command.Parameters.AddWithValue("p_firstName", firstName);
+                        command.Parameters.AddWithValue("p_middleName", middleName);
+                        command.Parameters.AddWithValue("p_lastName", lastName);
+                        command.Parameters.AddWithValue("p_houseNo", houseNo);
+                        command.Parameters.AddWithValue("p_streetAddress", streetAddress);
+                        command.Parameters.AddWithValue("p_telephoneNo", telephoneNo);
+                        command.Parameters.AddWithValue("p_birthday", birthday);
+                        command.Parameters.AddWithValue("p_gender", gender);
+
+                        connection.Open();
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        return $"{rowsAffected} row(s) updated successfully.";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+        [WebMethod]
+        public string DeleteResident(string residentID)
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
+                {
+                    using (MySqlCommand command = new MySqlCommand("sptblResidents_Delete", connection))
+                    {
+                        command.CommandType = CommandType.StoredProcedure;
+
+                        command.Parameters.AddWithValue("p_residentID", residentID);
+
+                        connection.Open();
+                        int rowsAffected = command.ExecuteNonQuery();
+
+                        return $"{rowsAffected} row(s) deleted successfully.";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+    }
+    
+}
+
